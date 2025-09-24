@@ -1,0 +1,6 @@
+galaxy:
+  database_connection: sqlite:///./database/galaxy.sqlite?isolation_level=IMMEDIATE
+  tool_data_path: ./tool-data
+  file_path: ./files
+  enable_api: true
+  allow_user_creation: true

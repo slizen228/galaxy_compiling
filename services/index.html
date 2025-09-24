@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galaxy API Tester</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        input {
+            padding: 8px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Galaxy API Tester</h1>
+    
+    <div class="container">
+        <div class="form-group">
+            <label for="apiUrl">Galaxy API URL:</label>
+            <input type="text" id="apiUrl" value="http://localhost:8080/api">
+        </div>
+        
+        <div class="form-group">
+            <label for="apiKey">API Key:</label>
+            <input type="text" id="apiKey" placeholder="e24c7790b978b41996a1ed5807756311">
+        </div>
+        
+        <div class="form-group">
+            <label for="historyName">History Name:</label>
+            <input type="text" id="historyName" value="Test History">
+        </div>
+        
+        <div class="form-group">
+            <label for="fileInput">Select File to Upload:</label>
+            <input type="file" id="fileInput">
+        </div>
+        
+        <button onclick="testConnection()">Test Connection</button>
+        <button onclick="getHistories()">Get Histories</button>
+        <button onclick="uploadFile()">Upload File</button>
+        <button onclick="createCollection()">Create Collection</button>
+        
+        <h3>Response:</h3>
+        <textarea id="responseArea" readonly></textarea>
+    </div>
+
+    <script>
+        function logResponse(data) {
+            document.getElementById('responseArea').value = JSON.stringify(data, null, 2);
+        }
+        
+        function getConfig() {
+            return {
+                apiUrl: document.getElementById('apiUrl').value,
+                apiKey: document.getElementById('apiKey').value,
+                historyName: document.getElementById('historyName').value
+            };
+        }
+        
+        async function testConnection() {
+            const { apiUrl, apiKey } = getConfig();
+            try {
+                const response = await fetch(`${apiUrl}/version?key=${apiKey}`);
+                const data = await response.json();
+                logResponse(data);
+                alert(`Connected to Galaxy ${data.version_major}`);
+            } catch (error) {
+                logResponse({ error: error.message });
+                alert('Connection failed: ' + error.message);
+            }
+        }
+        
+        async function getHistories() {
+            const { apiUrl, apiKey } = getConfig();
+            try {
+                const response = await fetch(`${apiUrl}/histories?key=${apiKey}`);
+                const data = await response.json();
+                logResponse(data);
+            } catch (error) {
+                logResponse({ error: error.message });
+            }
+        }
+        
+        async function uploadFile() {
+            const { apiUrl, apiKey, historyName } = getConfig();
+            const fileInput = document.getElementById('fileInput');
+            
+            if (!fileInput.files.length) {
+                alert('Please select a file first');
+                return;
+            }
+            
+            // 1. Get or create history
+            let historyId;
+            try {
+                const historiesResponse = await fetch(`${apiUrl}/histories?key=${apiKey}`);
+                const histories = await historiesResponse.json();
+                const existingHistory = histories.find(h => h.name === historyName);
+                
+                if (existingHistory) {
+                    historyId = existingHistory.id;
+                } else {
+                    const createResponse = await fetch(`${apiUrl}/histories?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: historyName })
+                    });
+                    const newHistory = await createResponse.json();
+                    historyId = newHistory.id;
+                }
+            } catch (error) {
+                logResponse({ error: 'History error: ' + error.message });
+                return;
+            }
+            
+            // 2. Upload file
+            try {
+                const formData = new FormData();
+                formData.append('files_0|file_data', fileInput.files[0]);
+                formData.append('history_id', historyId);
+                formData.append('file_type', 'auto');
+                
+                const uploadResponse = await fetch(`${apiUrl}/tools?key=${apiKey}&tool_id=upload1`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await uploadResponse.json();
+                logResponse(result);
+                alert('File uploaded successfully!');
+            } catch (error) {
+                logResponse({ error: 'Upload error: ' + error.message });
+            }
+        }
+        
+        async function createCollection() {
+            const { apiUrl, apiKey, historyName } = getConfig();
+            
+            try {
+                // 1. Get history
+                const historiesResponse = await fetch(`${apiUrl}/histories?key=${apiKey}`);
+                const histories = await historiesResponse.json();
+                const history = histories.find(h => h.name === historyName);
+                
+                if (!history) {
+                    throw new Error('History not found');
+                }
+                
+                // 2. Get datasets from history
+                const contentsResponse = await fetch(`${apiUrl}/histories/${history.id}/contents?key=${apiKey}`);
+                const contents = await contentsResponse.json();
+                const datasets = contents.filter(item => item.history_content_type === 'dataset');
+                
+                if (datasets.length < 2) {
+                    throw new Error('Need at least 2 datasets to create collection');
+                }
+                
+                // 3. Create collection
+                const elements = datasets.slice(0, 2).map((dataset, index) => ({
+                    name: `item-${index}`,
+                    src: 'hda',
+                    id: dataset.id
+                }));
+                
+                const collectionResponse = await fetch(`${apiUrl}/histories/${history.id}/contents?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        collection_type: 'list',
+                        name: 'Test Collection',
+                        element_identifiers: elements,
+                        type: 'dataset_collection'
+                    })
+                });
+                
+                const result = await collectionResponse.json();
+                logResponse(result);
+                alert('Collection created successfully!');
+            } catch (error) {
+                logResponse({ error: error.message });
+            }
+        }
+    </script>
+</body>
+</html>

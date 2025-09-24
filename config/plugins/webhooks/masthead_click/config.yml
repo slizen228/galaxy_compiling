@@ -1,0 +1,7 @@
+id: click_button
+type: masthead
+activate: true
+
+icon: fa-bolt        # Иконка FontAwesome, можно поменять
+tooltip: Click me!   # Всплывающая подсказка при наведении
+function: clickPopup # Название JS-функции из script.js

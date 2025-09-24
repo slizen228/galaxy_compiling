@@ -1,0 +1,20 @@
+<tool id="metadata_writer" name="Metadata Writer" version="1.0.0">
+    <description>Collects metadata from history and saves to JSON</description>
+
+    <command detect_errors="exit_code">
+        python3 $__tool_directory__/metadata_writer.py 
+        --output '$output'
+    </command>
+
+    <inputs>
+        <!-- Никаких входных файлов не нужно, потому что мы читаем из истории -->
+    </inputs>
+
+    <outputs>
+        <data name="output" format="json" label="Metadata from history"/>
+    </outputs>
+
+    <help>
+        This tool collects metadata of all datasets in the current history and outputs it as JSON.
+    </help>
+</tool>
