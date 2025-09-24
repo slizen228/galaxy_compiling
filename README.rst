@@ -1,3 +1,24 @@
+Первый запуск:
+ python3 -m venv .venv
+ source .venv/bin/activate
+ sh run.sh
+Galaxy будет доступна по адресу: http://localhost:8080
+
+
+Создание администратора:
+ Остановить Galaxy (Ctrl+C)
+ Отредактировать config/galaxy.yml:
+  admin_users: "you@example.com"
+ Сохранить и снова запустить: sh run.sh
+ 
+ 
+ Редактирование UI: 
+ /galaxy/client/src
+ Находим нужный компонент и редактируем соответствующий файл .vue
+ 
+
+
+
 .. figure:: https://galaxyproject.org/images/galaxy-logos/galaxy_project_logo.jpg
    :alt: Galaxy Logo
 
